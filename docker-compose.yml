@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: kliktaut-api-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_password}
+      POSTGRES_DB: ${DB_NAME:-kliktaut}
+    ports:
+      - "5433:5432"
+    volumes:
+      - kliktaut_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-kliktaut}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8
+    container_name: kliktaut-api-redis
+    restart: unless-stopped
+    command: redis-server --appendonly no
+    ports:
+      - "6381:6379"
+    volumes:
+      - kliktaut_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  kliktaut_pgdata:
+  kliktaut_redisdata:
