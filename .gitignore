@@ -1,0 +1,14 @@
+# Environment
+.env
+
+# Binaries
+/kliktaut-api
+*.exe
+
+# Dependencies
+vendor/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
