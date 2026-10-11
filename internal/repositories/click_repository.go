@@ -6,6 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	"kliktaut-api/internal/utils"
 )
 
 type ClickRepository struct {
@@ -25,10 +27,12 @@ func (r *ClickRepository) InsertClickAsync(linkID, ip, userAgent, referrer strin
 	return r.InsertClick(uid, ip, userAgent, referrer)
 }
 
-// InsertClick records a click and atomically increments the counter in one transaction.
-// Raw SQL: GORM does not map INET cleanly (RISK-007); device/browser/os
-// are filled in Phase 3 (UA parser).
+// InsertClick records a click and atomically increments the counter in one
+// transaction. Raw SQL: GORM does not map INET cleanly (RISK-007).
+// UA parsing happens here so device/browser/os land in the same row (§9.3).
 func (r *ClickRepository) InsertClick(linkID uuid.UUID, ip, userAgent, referrer string) error {
+	device, browser, os := parseFields(userAgent)
+
 	return r.DB.Transaction(func(tx *gorm.DB) error {
 		var ipValue interface{}
 		if ip != "" {
@@ -36,9 +40,9 @@ func (r *ClickRepository) InsertClick(linkID uuid.UUID, ip, userAgent, referrer 
 		}
 
 		if err := tx.Exec(
-			`INSERT INTO clicks (link_id, ip_address, user_agent, referrer)
-			 VALUES (?, ?::inet, ?, ?)`,
-			linkID, ipValue, userAgent, referrer,
+			`INSERT INTO clicks (link_id, ip_address, user_agent, referrer, device_type, browser, os)
+			 VALUES (?, ?::inet, ?, ?, ?, ?, ?)`,
+			linkID, ipValue, userAgent, referrer, device, browser, os,
 		).Error; err != nil {
 			return fmt.Errorf("insert click: %w", err)
 		}
@@ -52,4 +56,12 @@ func (r *ClickRepository) InsertClick(linkID uuid.UUID, ip, userAgent, referrer 
 
 		return nil
 	})
+}
+
+func parseFields(userAgent string) (device, browser, os string) {
+	if utils.IsBot(userAgent) {
+		return "bot", userAgent, userAgent
+	}
+	info := utils.ParseUA(userAgent)
+	return info.DeviceType, info.Browser, info.OS
 }
