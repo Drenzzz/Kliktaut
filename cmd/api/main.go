@@ -12,6 +12,8 @@ import (
 	"kliktaut-api/internal/config"
 	"kliktaut-api/internal/database"
 	"kliktaut-api/internal/handlers"
+	"kliktaut-api/internal/repositories"
+	"kliktaut-api/internal/services"
 )
 
 func main() {
@@ -42,6 +44,12 @@ func main() {
 	// urutan Penting: route statis dulu, /:shortCode menyusul di Phase 2
 	health := handlers.NewHealthHandler(db, rdb)
 	app.Get("/health", health.Get)
+
+	// /api/v1/* — API key middleware menyusul di Phase 3
+	linkSvc := services.NewLinkService(cfg, repositories.NewLinkRepository(db), services.NewShortener(cfg, services.NewRandomSource(), repositories.NewLinkRepository(db).ExistsShortCode))
+	linkHandler := handlers.NewLinkHandler(linkSvc)
+	api := app.Group("/api/v1")
+	api.Post("/links", linkHandler.Create)
 
 	go func() {
 		log.Printf("%s (%s) listen di :%s", cfg.AppName, cfg.AppEnv, cfg.AppPort)

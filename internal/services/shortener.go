@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"math/rand"
 	"regexp"
 
@@ -18,10 +17,6 @@ var ReservedWords = map[string]bool{
 var aliasRegex = regexp.MustCompile(`^[a-zA-Z0-9-]{3,50}$`)
 
 const base62Chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-var ErrAliasTaken = errors.New("ALIAS_TAK_TERSEDIA")
-var ErrAliasInvalid = errors.New("ALIAS_TIDAK_VALID")
-var ErrCodeGenFailed = errors.New("GAGAL_GENERATE_KODE")
 
 // RandomSource dibuat injectable agar collision bisa diuji (TEST-005).
 type RandomSource interface {
