@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -87,4 +88,75 @@ func (svc *LinkService) GetByID(id string) (*models.Link, error) {
 		return nil, err
 	}
 	return link, nil
+}
+
+// Update mem-patch sebagian field; short_code immutable; minimal 1 field.
+// Presence check pakai map karena *time.Time tidak bisa membedakan
+// "expires_at: null" (hapus expiry) vs "field tidak dikirim" (§6.4).
+func (svc *LinkService) Update(id string, body []byte) (*models.Link, error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, ErrInvalidRequest
+	}
+	delete(raw, "short_code") // immutable — diabaikan
+	delete(raw, "id")         // immutable
+
+	if len(raw) == 0 {
+		return nil, ErrInvalidRequest
+	}
+
+	fields := make(map[string]interface{}, 4)
+
+	if v, ok := raw["original_url"]; ok {
+		var u string
+		if err := json.Unmarshal(v, &u); err != nil {
+			return nil, ErrInvalidRequest
+		}
+		u = strings.TrimSpace(u)
+		if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+			return nil, ErrInvalidRequest
+		}
+		fields["original_url"] = u
+	}
+	if v, ok := raw["title"]; ok {
+		var t string
+		if err := json.Unmarshal(v, &t); err != nil {
+			return nil, ErrInvalidRequest
+		}
+		if len(t) > 255 {
+			return nil, ErrInvalidRequest
+		}
+		fields["title"] = t
+	}
+	if v, ok := raw["expires_at"]; ok {
+		var t *time.Time
+		if err := json.Unmarshal(v, &t); err != nil {
+			return nil, ErrInvalidRequest
+		}
+		fields["expires_at"] = t // null → NULL di DB (hapus expiry)
+	}
+	if v, ok := raw["is_active"]; ok {
+		var b bool
+		if err := json.Unmarshal(v, &b); err != nil {
+			return nil, ErrInvalidRequest
+		}
+		fields["is_active"] = b
+	}
+
+	if len(fields) == 0 {
+		return nil, ErrInvalidRequest
+	}
+
+	if err := svc.links.UpdateFields(id, fields); err != nil {
+		return nil, err
+	}
+	return svc.GetByID(id)
+}
+
+// SoftDelete menonaktifkan link tanpa menghapus row (REQ-011).
+func (svc *LinkService) SoftDelete(id string) error {
+	if _, err := svc.GetByID(id); err != nil {
+		return err
+	}
+	return svc.links.UpdateFields(id, map[string]interface{}{"is_active": false})
 }

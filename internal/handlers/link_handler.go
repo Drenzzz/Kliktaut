@@ -116,6 +116,45 @@ func (h *LinkHandler) GetByID(c fiber.Ctx) error {
 	return utils.Success(c, fiber.StatusOK, toLinkResponse(link, h.svc.ShortURL(link.ShortCode)))
 }
 
+// PATCH /api/v1/links/:id — minimal 1 field; short_code immutable.
+func (h *LinkHandler) Update(c fiber.Ctx) error {
+	id := c.Params("id")
+	if _, err := uuid.Parse(id); err != nil {
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Link ID tidak valid")
+	}
+
+	link, err := h.svc.Update(id, c.Body())
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrInvalidRequest):
+			return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Minimal satu field harus dikirim, dan hanya original_url/title/expires_at/is_active yang boleh diubah")
+		case errors.Is(err, services.ErrLinkNotFound):
+			return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Link tidak ditemukan")
+		default:
+			return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan di server")
+		}
+	}
+
+	return utils.Success(c, fiber.StatusOK, toLinkResponse(link, h.svc.ShortURL(link.ShortCode)))
+}
+
+// DELETE /api/v1/links/:id — soft delete (is_active=false).
+func (h *LinkHandler) Delete(c fiber.Ctx) error {
+	id := c.Params("id")
+	if _, err := uuid.Parse(id); err != nil {
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Link ID tidak valid")
+	}
+
+	if err := h.svc.SoftDelete(id); err != nil {
+		if errors.Is(err, services.ErrLinkNotFound) {
+			return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Link tidak ditemukan")
+		}
+		return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan di server")
+	}
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{"message": "Link berhasil dinonaktifkan"})
+}
+
 func toLinkResponse(link *models.Link, shortURL string) dto.LinkResponse {
 	return dto.LinkResponse{
 		ID:          link.ID,

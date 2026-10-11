@@ -52,6 +52,8 @@ func main() {
 	api.Post("/links", linkHandler.Create)
 	api.Get("/links", linkHandler.List)
 	api.Get("/links/:id", linkHandler.GetByID)
+	api.Patch("/links/:id", linkHandler.Update)
+	api.Delete("/links/:id", linkHandler.Delete)
 
 	go func() {
 		log.Printf("%s (%s) listen di :%s", cfg.AppName, cfg.AppEnv, cfg.AppPort)
