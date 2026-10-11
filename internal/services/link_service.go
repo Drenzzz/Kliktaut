@@ -153,6 +153,19 @@ func (svc *LinkService) Update(id string, body []byte) (*models.Link, error) {
 	return svc.GetByID(id)
 }
 
+// GetByShortCode untuk redirect handler.
+func (svc *LinkService) GetByShortCode(code string) (*models.Link, error) {
+	link, err := svc.links.GetByShortCode(code)
+	if err != nil {
+		// GORM membungkus ErrRecordNotFound tanpa Unwrap — cek langsung
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrLinkNotFound
+		}
+		return nil, err
+	}
+	return link, nil
+}
+
 // SoftDelete menonaktifkan link tanpa menghapus row (REQ-011).
 func (svc *LinkService) SoftDelete(id string) error {
 	if _, err := svc.GetByID(id); err != nil {

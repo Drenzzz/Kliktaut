@@ -46,14 +46,21 @@ func main() {
 	app.Get("/health", health.Get)
 
 	// /api/v1/* — API key middleware menyusul di Phase 3
-	linkSvc := services.NewLinkService(cfg, repositories.NewLinkRepository(db), services.NewShortener(cfg, services.NewRandomSource(), repositories.NewLinkRepository(db).ExistsShortCode))
+	linkRepo := repositories.NewLinkRepository(db)
+	shortener := services.NewShortener(cfg, services.NewRandomSource(), linkRepo.ExistsShortCode)
+	linkSvc := services.NewLinkService(cfg, linkRepo, shortener)
+	clickRepo := repositories.NewClickRepository(db)
 	linkHandler := handlers.NewLinkHandler(linkSvc)
+	redirectHandler := handlers.NewRedirectHandler(linkSvc, clickRepo)
 	api := app.Group("/api/v1")
 	api.Post("/links", linkHandler.Create)
 	api.Get("/links", linkHandler.List)
 	api.Get("/links/:id", linkHandler.GetByID)
 	api.Patch("/links/:id", linkHandler.Update)
 	api.Delete("/links/:id", linkHandler.Delete)
+
+	// WAJIB PALING AKHIR: catch-all route param (REQ-006)
+	app.Get("/:shortCode", redirectHandler.Redirect)
 
 	go func() {
 		log.Printf("%s (%s) listen di :%s", cfg.AppName, cfg.AppEnv, cfg.AppPort)
