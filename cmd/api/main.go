@@ -50,6 +50,8 @@ func main() {
 	linkHandler := handlers.NewLinkHandler(linkSvc)
 	api := app.Group("/api/v1")
 	api.Post("/links", linkHandler.Create)
+	api.Get("/links", linkHandler.List)
+	api.Get("/links/:id", linkHandler.GetByID)
 
 	go func() {
 		log.Printf("%s (%s) listen di :%s", cfg.AppName, cfg.AppEnv, cfg.AppPort)

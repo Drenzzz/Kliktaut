@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"gorm.io/gorm"
+
 	"kliktaut-api/internal/config"
 	"kliktaut-api/internal/models"
 	"kliktaut-api/internal/repositories"
@@ -67,4 +69,22 @@ func (svc *LinkService) Create(originalURL, alias, title string, expiresAt *time
 
 func (svc *LinkService) ShortURL(code string) string {
 	return svc.cfg.BaseURL + "/" + code
+}
+
+// List membungkus repo untuk handler (pagination + search).
+func (svc *LinkService) List(page, perPage int, search string) ([]models.Link, int64, error) {
+	return svc.links.List(page, perPage, search)
+}
+
+// GetByID mengembalikan link atau ErrLinkNotFound.
+func (svc *LinkService) GetByID(id string) (*models.Link, error) {
+	link, err := svc.links.GetByID(id)
+	if err != nil {
+		// GORM membungkus ErrRecordNotFound tanpa Unwrap — cek langsung
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrLinkNotFound
+		}
+		return nil, err
+	}
+	return link, nil
 }
