@@ -26,28 +26,28 @@ func NewLinkHandler(svc *services.LinkService) *LinkHandler {
 func (h *LinkHandler) Create(c fiber.Ctx) error {
 	var req dto.CreateLinkRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Body tidak valid")
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 	}
 
 	// validator struct tag + cek manual scheme (validator `url` menerima ftp://)
 	if strings.HasPrefix(req.OriginalURL, "ftp://") || strings.HasPrefix(req.OriginalURL, "file://") {
-		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "URL harus http/https")
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "URL must use http or https")
 	}
 	if req.CustomAlias != "" && (len(req.CustomAlias) < 3 || len(req.CustomAlias) > 50) {
-		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "custom_alias harus 3-50 karakter")
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "custom_alias must be 3-50 characters")
 	}
 
 	link, err := h.svc.Create(req.OriginalURL, req.CustomAlias, req.Title, req.ExpiresAt)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrAliasTaken):
-			return utils.Error(c, fiber.StatusConflict, "ALIAS_TAK_TERSEDIA", "Custom alias sudah dipakai atau tidak diizinkan")
+			return utils.Error(c, fiber.StatusConflict, "ALIAS_TAKEN", "Custom alias is already in use or not allowed")
 		case errors.Is(err, services.ErrAliasInvalid):
-			return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Custom alias hanya boleh huruf, angka, dan dash (3-50 karakter)")
+			return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Custom alias may only contain letters, numbers, and dashes (3-50 characters)")
 		case errors.Is(err, services.ErrInvalidRequest):
-			return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "original_url harus http/https")
+			return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "original_url must use http or https")
 		default:
-			return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan di server")
+			return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected server error occurred")
 		}
 	}
 
@@ -75,7 +75,7 @@ func (h *LinkHandler) List(c fiber.Ctx) error {
 
 	links, total, err := h.svc.List(page, perPage, search)
 	if err != nil {
-		return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan di server")
+		return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected server error occurred")
 	}
 
 	data := make([]dto.LinkListResponse, 0, len(links))
@@ -102,13 +102,13 @@ func (h *LinkHandler) List(c fiber.Ctx) error {
 func (h *LinkHandler) GetByID(c fiber.Ctx) error {
 	id := c.Params("id")
 	if _, err := uuid.Parse(id); err != nil {
-		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Link ID tidak valid")
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Invalid link ID")
 	}
 
 	link, err := h.svc.GetByID(id)
 	if err != nil {
 		if errors.Is(err, services.ErrLinkNotFound) || errors.Is(err, gorm.ErrRecordNotFound) {
-			return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Link tidak ditemukan")
+			return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Link not found")
 		}
 		return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan di server")
 	}
@@ -120,18 +120,18 @@ func (h *LinkHandler) GetByID(c fiber.Ctx) error {
 func (h *LinkHandler) Update(c fiber.Ctx) error {
 	id := c.Params("id")
 	if _, err := uuid.Parse(id); err != nil {
-		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Link ID tidak valid")
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Invalid link ID")
 	}
 
 	link, err := h.svc.Update(id, c.Body())
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrInvalidRequest):
-			return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Minimal satu field harus dikirim, dan hanya original_url/title/expires_at/is_active yang boleh diubah")
+			return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "At least one field is required; only original_url/title/expires_at/is_active can be updated")
 		case errors.Is(err, services.ErrLinkNotFound):
-			return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Link tidak ditemukan")
+			return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Link not found")
 		default:
-			return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan di server")
+			return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected server error occurred")
 		}
 	}
 
@@ -142,17 +142,17 @@ func (h *LinkHandler) Update(c fiber.Ctx) error {
 func (h *LinkHandler) Delete(c fiber.Ctx) error {
 	id := c.Params("id")
 	if _, err := uuid.Parse(id); err != nil {
-		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Link ID tidak valid")
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Invalid link ID")
 	}
 
 	if err := h.svc.SoftDelete(id); err != nil {
 		if errors.Is(err, services.ErrLinkNotFound) {
-			return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Link tidak ditemukan")
+			return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Link not found")
 		}
-		return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "Terjadi kesalahan di server")
+		return utils.Error(c, fiber.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected server error occurred")
 	}
 
-	return utils.Success(c, fiber.StatusOK, fiber.Map{"message": "Link berhasil dinonaktifkan"})
+	return utils.Success(c, fiber.StatusOK, fiber.Map{"message": "Link deactivated successfully"})
 }
 
 func toLinkResponse(link *models.Link, shortURL string) dto.LinkResponse {

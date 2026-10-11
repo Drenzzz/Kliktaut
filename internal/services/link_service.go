@@ -13,11 +13,11 @@ import (
 	"kliktaut-api/internal/repositories"
 )
 
-var ErrAliasTaken = errors.New("ALIAS_TAK_TERSEDIA")
-var ErrAliasInvalid = errors.New("ALIAS_TIDAK_VALID")
+var ErrAliasTaken = errors.New("ALIAS_TAKEN")
+var ErrAliasInvalid = errors.New("ALIAS_INVALID")
 var ErrLinkNotFound = errors.New("LINK_NOT_FOUND")
 var ErrInvalidRequest = errors.New("INVALID_REQUEST")
-var ErrCodeGenFailed = errors.New("GAGAL_GENERATE_KODE")
+var ErrCodeGenFailed = errors.New("CODE_GENERATION_FAILED")
 
 type LinkService struct {
 	cfg        *config.Config
@@ -29,7 +29,7 @@ func NewLinkService(cfg *config.Config, links *repositories.LinkRepository, s *S
 	return &LinkService{cfg: cfg, links: links, shortener: s}
 }
 
-// Create membuat link: alias valid menjadi short_code, selain itu kode random.
+// Create builds a link: a valid alias becomes the short_code, otherwise a random code.
 func (svc *LinkService) Create(originalURL, alias, title string, expiresAt *time.Time) (*models.Link, error) {
 	originalURL = strings.TrimSpace(originalURL)
 	if !strings.HasPrefix(originalURL, "http://") && !strings.HasPrefix(originalURL, "https://") {
@@ -61,8 +61,8 @@ func (svc *LinkService) Create(originalURL, alias, title string, expiresAt *time
 	}
 
 	if err := svc.links.Create(link); err != nil {
-		// Kode random bisa collision di DB walau exists-check lolos (race);
-		// kalau ini custom alias, biarkan di-map jadi alias taken.
+		// A random code can still collide in the DB even if the exists-check passed (race);
+		// for custom aliases, surface it as alias taken.
 		return nil, err
 	}
 	return link, nil
@@ -72,16 +72,16 @@ func (svc *LinkService) ShortURL(code string) string {
 	return svc.cfg.BaseURL + "/" + code
 }
 
-// List membungkus repo untuk handler (pagination + search).
+// List wraps the repository for handlers (pagination + search).
 func (svc *LinkService) List(page, perPage int, search string) ([]models.Link, int64, error) {
 	return svc.links.List(page, perPage, search)
 }
 
-// GetByID mengembalikan link atau ErrLinkNotFound.
+// GetByID returns a link or ErrLinkNotFound.
 func (svc *LinkService) GetByID(id string) (*models.Link, error) {
 	link, err := svc.links.GetByID(id)
 	if err != nil {
-		// GORM membungkus ErrRecordNotFound tanpa Unwrap — cek langsung
+		// GORM wraps ErrRecordNotFound without Unwrap — compare directly
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrLinkNotFound
 		}
@@ -90,15 +90,15 @@ func (svc *LinkService) GetByID(id string) (*models.Link, error) {
 	return link, nil
 }
 
-// Update mem-patch sebagian field; short_code immutable; minimal 1 field.
-// Presence check pakai map karena *time.Time tidak bisa membedakan
-// "expires_at: null" (hapus expiry) vs "field tidak dikirim" (§6.4).
+// Update patches a subset of fields; short_code is immutable; at least one field required.
+// Presence check uses a map because *time.Time cannot distinguish
+// "expires_at: null" (clear expiry) from "field not sent" (§6.4).
 func (svc *LinkService) Update(id string, body []byte) (*models.Link, error) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, ErrInvalidRequest
 	}
-	delete(raw, "short_code") // immutable — diabaikan
+	delete(raw, "short_code") // immutable — ignored
 	delete(raw, "id")         // immutable
 
 	if len(raw) == 0 {
@@ -133,7 +133,7 @@ func (svc *LinkService) Update(id string, body []byte) (*models.Link, error) {
 		if err := json.Unmarshal(v, &t); err != nil {
 			return nil, ErrInvalidRequest
 		}
-		fields["expires_at"] = t // null → NULL di DB (hapus expiry)
+		fields["expires_at"] = t // null -> NULL in DB (clear expiry)
 	}
 	if v, ok := raw["is_active"]; ok {
 		var b bool
@@ -153,11 +153,11 @@ func (svc *LinkService) Update(id string, body []byte) (*models.Link, error) {
 	return svc.GetByID(id)
 }
 
-// GetByShortCode untuk redirect handler.
+// GetByShortCode for the redirect handler.
 func (svc *LinkService) GetByShortCode(code string) (*models.Link, error) {
 	link, err := svc.links.GetByShortCode(code)
 	if err != nil {
-		// GORM membungkus ErrRecordNotFound tanpa Unwrap — cek langsung
+		// GORM wraps ErrRecordNotFound without Unwrap — compare directly
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrLinkNotFound
 		}
@@ -166,7 +166,7 @@ func (svc *LinkService) GetByShortCode(code string) (*models.Link, error) {
 	return link, nil
 }
 
-// SoftDelete menonaktifkan link tanpa menghapus row (REQ-011).
+// SoftDelete deactivates a link without removing the row (REQ-011).
 func (svc *LinkService) SoftDelete(id string) error {
 	if _, err := svc.GetByID(id); err != nil {
 		return err

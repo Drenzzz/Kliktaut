@@ -36,8 +36,8 @@ func (r *LinkRepository) GetByID(id string) (*models.Link, error) {
 	return &link, nil
 }
 
-// List mengembalikan links + exact total untuk meta pagination.
-// search: ILIKE substring pada title OR short_code (keputusan OQ-005).
+// List returns links plus an exact total for pagination metadata.
+// search: ILIKE substring on title OR short_code (decision OQ-005).
 func (r *LinkRepository) List(page, perPage int, search string) ([]models.Link, int64, error) {
 	query := r.DB.Model(&models.Link{})
 	if search != "" {
@@ -63,7 +63,7 @@ func (r *LinkRepository) List(page, perPage int, search string) ([]models.Link, 
 	return links, total, nil
 }
 
-// UpdateFields hanya menyentuh kolom yang dikirim (patch sebagian).
+// UpdateFields only touches the sent columns (partial patch).
 func (r *LinkRepository) UpdateFields(id string, fields map[string]interface{}) error {
 	return r.DB.Model(&models.Link{}).Where("id = ?", id).Updates(fields).Error
 }

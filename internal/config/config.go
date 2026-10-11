@@ -88,13 +88,13 @@ func Load() (*Config, error) {
 	}
 
 	if cfg.APIKey == "" {
-		return nil, fmt.Errorf("API_KEY wajib diisi")
+		return nil, fmt.Errorf("API_KEY is required")
 	}
 	if cfg.CacheTTLSeconds <= 0 {
-		return nil, fmt.Errorf("CACHE_TTL_SECONDS harus > 0")
+		return nil, fmt.Errorf("CACHE_TTL_SECONDS must be > 0")
 	}
 	if cfg.ShortCodeLength <= 0 {
-		return nil, fmt.Errorf("SHORT_CODE_LENGTH harus > 0")
+		return nil, fmt.Errorf("SHORT_CODE_LENGTH must be > 0")
 	}
 
 	return cfg, nil
@@ -121,7 +121,7 @@ func getIntEnv(key string, fallback int) (int, error) {
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		return 0, fmt.Errorf("%s harus angka, dapat %q", key, v)
+		return 0, fmt.Errorf("%s must be a number, got %q", key, v)
 	}
 	return n, nil
 }

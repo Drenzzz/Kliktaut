@@ -18,8 +18,7 @@ func NewRedis(cfg *config.Config) (*redis.Client, error) {
 
 	ctx := context.Background()
 	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("ping redis: %w", err)
-	}
+		return nil, fmt.Errorf("ping redis: %w", err)	}
 
 	return client, nil
 }

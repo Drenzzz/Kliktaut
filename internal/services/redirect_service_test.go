@@ -46,6 +46,6 @@ func TestEvaluateRedirectBoundary(t *testing.T) {
 	now := time.Now()
 	link := linkPtr(true, &now)
 	if d := EvaluateRedirect(link, now); d.Status != 410 {
-		t.Errorf("expires_at == now harus 410 (Before tercapai), got %d", d.Status)
+		t.Errorf("expires_at == now must be 410, got %d", d.Status)
 	}
 }

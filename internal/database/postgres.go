@@ -20,12 +20,12 @@ func NewPostgres(cfg *config.Config) (*gorm.DB, error) {
 		Logger: logger.Default.LogMode(logLevel),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("buka koneksi postgres: %w", err)
+		return nil, fmt.Errorf("open postgres connection: %w", err)
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("akses sql.DB: %w", err)
+		return nil, fmt.Errorf("access sql.DB: %w", err)
 	}
 	// Pool dasar; angka bisa dioptimasi saat load test Phase 5
 	sqlDB.SetMaxOpenConns(20)

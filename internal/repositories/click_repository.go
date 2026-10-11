@@ -16,7 +16,7 @@ func NewClickRepository(db *gorm.DB) *ClickRepository {
 	return &ClickRepository{DB: db}
 }
 
-// InsertClickAsync versi string ID untuk handler redirect (goroutine).
+// InsertClickAsync takes a string ID for the redirect handler goroutine.
 func (r *ClickRepository) InsertClickAsync(linkID, ip, userAgent, referrer string) error {
 	uid, err := uuid.Parse(linkID)
 	if err != nil {
@@ -25,9 +25,9 @@ func (r *ClickRepository) InsertClickAsync(linkID, ip, userAgent, referrer strin
 	return r.InsertClick(uid, ip, userAgent, referrer)
 }
 
-// InsertClick mencatat click + increment counter atomik dalam satu transaksi.
-// Raw SQL: GORM tidak map INET dengan bersih (RISK-007); device/browser/os
-// diisi Phase 3 (UA parser).
+// InsertClick records a click and atomically increments the counter in one transaction.
+// Raw SQL: GORM does not map INET cleanly (RISK-007); device/browser/os
+// are filled in Phase 3 (UA parser).
 func (r *ClickRepository) InsertClick(linkID uuid.UUID, ip, userAgent, referrer string) error {
 	return r.DB.Transaction(func(tx *gorm.DB) error {
 		var ipValue interface{}

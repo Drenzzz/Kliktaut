@@ -41,10 +41,10 @@ func TestLoadTanpaAPIKey(t *testing.T) {
 
 	cfg, err := Load()
 	if err == nil {
-		t.Fatal("expected error saat API_KEY kosong, dapat config valid")
+		t.Fatal("expected error when API_KEY is empty, got valid config")
 	}
 	if cfg != nil {
-		t.Error("config harus nil saat error")
+		t.Error("config must be nil on error")
 	}
 	if !strings.Contains(err.Error(), "API_KEY") {
 		t.Errorf("pesan error tidak menyebut API_KEY: %v", err)

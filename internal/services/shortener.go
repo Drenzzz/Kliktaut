@@ -7,8 +7,8 @@ import (
 	"kliktaut-api/internal/config"
 )
 
-// Reserved words §14.1 — dipakai juga untuk kode random (keputusan OQ-001:
-// kode random yang kebetulan reserved di-regenerate, bukan error).
+// Reserved words from §14.1 — also applied to random codes (decision OQ-001:
+// a reserved random code is regenerated, not returned as an error).
 var ReservedWords = map[string]bool{
 	"api": true, "docs": true, "health": true, "admin": true, "login": true,
 	"register": true, "static": true, "assets": true, "favicon": true, "robots": true,
@@ -18,7 +18,7 @@ var aliasRegex = regexp.MustCompile(`^[a-zA-Z0-9-]{3,50}$`)
 
 const base62Chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-// RandomSource dibuat injectable agar collision bisa diuji (TEST-005).
+// RandomSource is injectable so collisions can be tested (TEST-005).
 type RandomSource interface {
 	Intn(n int) int
 }
@@ -41,8 +41,8 @@ func NewShortener(cfg *config.Config, randSrc RandomSource, exists func(string) 
 	return &Shortener{cfg: cfg, rand: randSrc, exists: exists}
 }
 
-// Generate membuat short code random base62; regenerate bila collision
-// atau masuk reserved words, maksimum 3 percobaan.
+// Generate produces a random base62 short code; regenerates on collision
+// or reserved words, up to 3 attempts.
 func (s *Shortener) Generate() (string, error) {
 	for attempt := 0; attempt < 3; attempt++ {
 		code := s.randomCode()
@@ -68,8 +68,8 @@ func (s *Shortener) randomCode() string {
 	return string(b)
 }
 
-// ValidateAlias memvalidasi custom alias (regex + reserved) dan memeriksa
-// ketersediaan via exists callback. Alias valid menjadi short_code apa adanya.
+// ValidateAlias validates a custom alias (regex + reserved) and checks
+// availability via the exists callback. A valid alias becomes the short_code as-is.
 func (s *Shortener) ValidateAlias(alias string) error {
 	if !aliasRegex.MatchString(alias) {
 		return ErrAliasInvalid

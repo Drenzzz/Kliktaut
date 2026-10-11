@@ -22,11 +22,11 @@ func TestGenerateBase62(t *testing.T) {
 			t.Fatalf("Generate() error: %v", err)
 		}
 		if len(code) != 7 {
-			t.Fatalf("panjang kode = %d, want 7", len(code))
+			t.Fatalf("code length = %d, want 7", len(code))
 		}
 		for _, ch := range code {
 			if !strings.ContainsRune(base62Chars, ch) {
-				t.Fatalf("karakter %q di luar base62", ch)
+				t.Fatalf("character %q outside base62", ch)
 			}
 		}
 	}
@@ -73,9 +73,9 @@ func TestGenerateCollision(t *testing.T) {
 	}
 }
 
-// TEST-005b: kode random yang reserved di-regenerate, bukan error
+// TEST-005b: reserved random code is regenerated, not returned
 func TestGenerateReservedRegenerated(t *testing.T) {
-	// source yang selalu menghasilkan 'f','a','v','i','c','o','n' lalu kode biasa
+	// source that always produces f,a,v,i,c,o,n then regular codes
 	seq := []int{5, 0, 21, 8, 2, 14, 13, 0, 0, 0, 0, 0, 0, 0}
 	idx := 0
 	fixed := fixedSource{seq: seq, idx: &idx}
@@ -90,10 +90,10 @@ func TestGenerateReservedRegenerated(t *testing.T) {
 		t.Fatalf("Generate() error: %v", err)
 	}
 	if code == "favicon" {
-		t.Fatal("reserved word tidak boleh dikembalikan")
+		t.Fatal("reserved word must not be returned")
 	}
 	if len(code) != 7 {
-		t.Fatalf("kode hasil regenerate salah: %q", code)
+		t.Fatalf("wrong regenerated code: %q", code)
 	}
 }
 

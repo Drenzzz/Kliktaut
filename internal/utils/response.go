@@ -4,7 +4,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// Standard response format §14.2–14.3 dari dokumen perencanaan.
+// Standard response format from §14.2–14.3 of the planning document.
 
 type ErrorBody struct {
 	Code    string `json:"code"`

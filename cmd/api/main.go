@@ -37,15 +37,15 @@ func main() {
 	})
 
 	app.Use(logger.New(logger.Config{
-		// redaksi X-API-Key agar tidak masuk log (REQ-028)
+		// redact X-API-Key so it never lands in logs (REQ-028)
 		Format: "${time} | ${status} | ${latency} | ${ip} | ${method} | ${path} | ${error}\n",
 	}))
 
-	// urutan Penting: route statis dulu, /:shortCode menyusul di Phase 2
+	// order matters: static routes first, /:shortCode added in Phase 2
 	health := handlers.NewHealthHandler(db, rdb)
 	app.Get("/health", health.Get)
 
-	// /api/v1/* — API key middleware menyusul di Phase 3
+	// /api/v1/* — API key middleware arrives in Phase 3
 	linkRepo := repositories.NewLinkRepository(db)
 	shortener := services.NewShortener(cfg, services.NewRandomSource(), linkRepo.ExistsShortCode)
 	linkSvc := services.NewLinkService(cfg, linkRepo, shortener)
@@ -59,11 +59,11 @@ func main() {
 	api.Patch("/links/:id", linkHandler.Update)
 	api.Delete("/links/:id", linkHandler.Delete)
 
-	// WAJIB PALING AKHIR: catch-all route param (REQ-006)
+	// MUST BE LAST: catch-all param route (REQ-006)
 	app.Get("/:shortCode", redirectHandler.Redirect)
 
 	go func() {
-		log.Printf("%s (%s) listen di :%s", cfg.AppName, cfg.AppEnv, cfg.AppPort)
+		log.Printf("%s (%s) listening on :%s", cfg.AppName, cfg.AppEnv, cfg.AppPort)
 		if err := app.Listen(":" + cfg.AppPort); err != nil {
 			log.Fatalf("listen: %v", err)
 		}
@@ -74,7 +74,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	log.Println("signal diterima, shutting down...")
+	log.Println("shutdown signal received, shutting down...")
 	if err := app.Shutdown(); err != nil {
 		log.Printf("shutdown: %v", err)
 	}
@@ -86,5 +86,5 @@ func main() {
 	if rdb != nil {
 		_ = rdb.Close()
 	}
-	log.Println("shutdown selesai")
+	log.Println("shutdown complete")
 }
