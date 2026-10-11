@@ -59,6 +59,12 @@ func main() {
 	api.Patch("/links/:id", linkHandler.Update)
 	api.Delete("/links/:id", linkHandler.Delete)
 
+	analyticsSvc := services.NewAnalyticsService(repositories.NewAnalyticsRepository(db), linkRepo)
+	analyticsHandler := handlers.NewAnalyticsHandler(analyticsSvc)
+	api.Get("/links/:id/analytics", analyticsHandler.LinkAnalytics)
+	api.Get("/links/:id/clicks", analyticsHandler.ClicksList)
+	api.Get("/stats", analyticsHandler.Overview)
+
 	// MUST BE LAST: catch-all param route (REQ-006)
 	app.Get("/:shortCode", redirectHandler.Redirect)
 
