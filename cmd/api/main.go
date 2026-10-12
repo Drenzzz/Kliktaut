@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 
+	"kliktaut-api/internal/cache"
 	"kliktaut-api/internal/config"
 	"kliktaut-api/internal/database"
 	"kliktaut-api/internal/handlers"
@@ -49,10 +50,11 @@ func main() {
 	// /api/v1/* — API key middleware arrives in Phase 3
 	linkRepo := repositories.NewLinkRepository(db)
 	shortener := services.NewShortener(cfg, services.NewRandomSource(), linkRepo.ExistsShortCode)
-	linkSvc := services.NewLinkService(cfg, linkRepo, shortener)
+	linkCache := cache.NewLinkCache(rdb, cfg.CacheTTLSeconds)
+	linkSvc := services.NewLinkService(cfg, linkRepo, shortener, linkCache)
 	clickRepo := repositories.NewClickRepository(db)
 	linkHandler := handlers.NewLinkHandler(linkSvc)
-	redirectHandler := handlers.NewRedirectHandler(linkSvc, clickRepo)
+	redirectHandler := handlers.NewRedirectHandler(linkSvc, clickRepo, linkCache)
 	api := app.Group("/api/v1", middleware.APIKey(cfg.APIKey), middleware.RateLimit(rdb, "api", cfg.RateLimitMax, cfg.RateLimitWindowSeconds))
 	api.Post("/links", linkHandler.Create)
 	api.Get("/links", linkHandler.List)

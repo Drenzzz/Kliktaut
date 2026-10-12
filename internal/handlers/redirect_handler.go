@@ -6,28 +6,40 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"kliktaut-api/internal/cache"
+	"kliktaut-api/internal/models"
 	"kliktaut-api/internal/repositories"
 	"kliktaut-api/internal/services"
 	"kliktaut-api/internal/utils"
 )
 
 type RedirectHandler struct {
-	svc     *services.LinkService
-	clicks  *repositories.ClickRepository
+	svc    *services.LinkService
+	clicks *repositories.ClickRepository
+	cache  *cache.LinkCache
 }
 
-func NewRedirectHandler(svc *services.LinkService, clicks *repositories.ClickRepository) *RedirectHandler {
-	return &RedirectHandler{svc: svc, clicks: clicks}
+func NewRedirectHandler(svc *services.LinkService, clicks *repositories.ClickRepository, cache *cache.LinkCache) *RedirectHandler {
+	return &RedirectHandler{svc: svc, clicks: clicks, cache: cache}
 }
 
-// GET /:shortCode — jalur paling kritikal: redirect + catat click async.
-// Click tracking must never block the response (§4.2).
+// GET /:shortCode — critical path: redirect + async click tracking (§4.2).
+// Cache-first: a Redis hit skips PostgreSQL; miss or Redis error falls back
+// to the DB (decision OQ-002). Inactive/expired entries are never cached.
 func (h *RedirectHandler) Redirect(c fiber.Ctx) error {
 	code := c.Params("shortCode")
 
-	link, err := h.svc.GetByShortCode(code)
-	if err != nil {
-		return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Short link not found")
+	var link *models.Link
+	if h.cache != nil {
+		link = h.cache.Get(c.Context(), code)
+	}
+	if link == nil {
+		var err error
+		link, err = h.svc.GetByShortCode(code)
+		if err != nil {
+			return utils.Error(c, fiber.StatusNotFound, "LINK_NOT_FOUND", "Short link not found")
+		}
+		h.cache.Set(c.Context(), link)
 	}
 
 	decision := services.EvaluateRedirect(link, time.Now())

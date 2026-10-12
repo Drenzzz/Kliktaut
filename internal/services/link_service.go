@@ -1,13 +1,16 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
 
+	"kliktaut-api/internal/cache"
 	"kliktaut-api/internal/config"
 	"kliktaut-api/internal/models"
 	"kliktaut-api/internal/repositories"
@@ -20,13 +23,14 @@ var ErrInvalidRequest = errors.New("INVALID_REQUEST")
 var ErrCodeGenFailed = errors.New("CODE_GENERATION_FAILED")
 
 type LinkService struct {
-	cfg        *config.Config
-	links      *repositories.LinkRepository
-	shortener  *Shortener
+	cfg   *config.Config
+	links *repositories.LinkRepository
+	short *Shortener
+	cache *cache.LinkCache
 }
 
-func NewLinkService(cfg *config.Config, links *repositories.LinkRepository, s *Shortener) *LinkService {
-	return &LinkService{cfg: cfg, links: links, shortener: s}
+func NewLinkService(cfg *config.Config, links *repositories.LinkRepository, s *Shortener, c *cache.LinkCache) *LinkService {
+	return &LinkService{cfg: cfg, links: links, short: s, cache: c}
 }
 
 // Create builds a link: a valid alias becomes the short_code, otherwise a random code.
@@ -38,12 +42,12 @@ func (svc *LinkService) Create(originalURL, alias, title string, expiresAt *time
 
 	var code string
 	if alias != "" {
-		if err := svc.shortener.ValidateAlias(alias); err != nil {
+		if err := svc.short.ValidateAlias(alias); err != nil {
 			return nil, err
 		}
 		code = alias
 	} else {
-		generated, err := svc.shortener.Generate()
+		generated, err := svc.short.Generate()
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +154,13 @@ func (svc *LinkService) Update(id string, body []byte) (*models.Link, error) {
 	if err := svc.links.UpdateFields(id, fields); err != nil {
 		return nil, err
 	}
-	return svc.GetByID(id)
+	link, err := svc.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	// §4.3: any successful PATCH invalidates the redirect cache
+	svc.invalidateCache(link.ShortCode)
+	return link, nil
 }
 
 // GetByShortCode for the redirect handler.
@@ -168,8 +178,22 @@ func (svc *LinkService) GetByShortCode(code string) (*models.Link, error) {
 
 // SoftDelete deactivates a link without removing the row (REQ-011).
 func (svc *LinkService) SoftDelete(id string) error {
-	if _, err := svc.GetByID(id); err != nil {
+	link, err := svc.GetByID(id)
+	if err != nil {
 		return err
 	}
-	return svc.links.UpdateFields(id, map[string]interface{}{"is_active": false})
+	if err := svc.links.UpdateFields(id, map[string]interface{}{"is_active": false}); err != nil {
+		return err
+	}
+	// §4.3: DELETE must stop redirects within milliseconds, not after TTL
+	svc.invalidateCache(link.ShortCode)
+	return nil
+}
+
+func (svc *LinkService) invalidateCache(code string) {
+	if svc.cache != nil {
+		if err := svc.cache.Delete(context.Background(), code); err != nil {
+			log.Printf("cache invalidation error (code %s): %v", code, err)
+		}
+	}
 }
