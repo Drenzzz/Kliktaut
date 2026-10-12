@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -11,6 +13,11 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	ipostgres "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"kliktaut-api/internal/cache"
 	"kliktaut-api/internal/config"
@@ -22,10 +29,48 @@ import (
 	"kliktaut-api/internal/utils"
 )
 
+// MigrateUp runs pending migrations before the server listens. Used by the
+// production container (distroless has no shell, decision #1) and safe to
+// call when the database is already up to date.
+func MigrateUp(cfg *config.Config) error {
+	dsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.DBSSLMode,
+	)
+
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return fmt.Errorf("migrate connection: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	driver, err := ipostgres.WithInstance(db, &ipostgres.Config{})
+	if err != nil {
+		return fmt.Errorf("migrate driver: %w", err)
+	}
+	m, err := migrate.NewWithDatabaseInstance("file:///migrations", "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("migrate init: %w", err)
+	}
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("migrate up: %w", err)
+	}
+	return nil
+}
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("config: %v", err)
+	}
+
+	// Production containers run migrations from the app binary itself
+	// (distroless has no shell). Locally, `make migrate` does the same.
+	if os.Getenv("RUN_MIGRATIONS") == "1" {
+		if err := MigrateUp(cfg); err != nil {
+			log.Fatalf("migrations: %v", err)
+		}
+		log.Println("migrations applied")
 	}
 
 	db, err := database.NewPostgres(cfg)
