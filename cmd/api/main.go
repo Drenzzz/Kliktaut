@@ -12,6 +12,7 @@ import (
 	"kliktaut-api/internal/config"
 	"kliktaut-api/internal/database"
 	"kliktaut-api/internal/handlers"
+	"kliktaut-api/internal/middleware"
 	"kliktaut-api/internal/repositories"
 	"kliktaut-api/internal/services"
 )
@@ -52,7 +53,7 @@ func main() {
 	clickRepo := repositories.NewClickRepository(db)
 	linkHandler := handlers.NewLinkHandler(linkSvc)
 	redirectHandler := handlers.NewRedirectHandler(linkSvc, clickRepo)
-	api := app.Group("/api/v1")
+	api := app.Group("/api/v1", middleware.APIKey(cfg.APIKey))
 	api.Post("/links", linkHandler.Create)
 	api.Get("/links", linkHandler.List)
 	api.Get("/links/:id", linkHandler.GetByID)
