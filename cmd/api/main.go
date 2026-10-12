@@ -1,12 +1,15 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 
 	"kliktaut-api/internal/cache"
@@ -16,6 +19,7 @@ import (
 	"kliktaut-api/internal/middleware"
 	"kliktaut-api/internal/repositories"
 	"kliktaut-api/internal/services"
+	"kliktaut-api/internal/utils"
 )
 
 func main() {
@@ -36,7 +40,36 @@ func main() {
 
 	app := fiber.New(fiber.Config{
 		AppName: cfg.AppName,
+		// REQ-034: every error exits as the standard JSON envelope (§14.2),
+		// never Fiber's plain-text default.
+		ErrorHandler: func(c fiber.Ctx, err error) error {
+			code := fiber.StatusInternalServerError
+			msg := "An unexpected server error occurred"
+			var e *fiber.Error
+			if errors.As(err, &e) {
+				code = e.Code
+				switch code {
+				case fiber.StatusNotFound:
+					msg = "Route not found"
+				case fiber.StatusMethodNotAllowed:
+					msg = "Method not allowed"
+				case fiber.StatusBadRequest:
+					msg = "Bad request"
+				}
+			}
+			return utils.Error(c, code, "HTTP_ERROR", msg)
+		},
 	})
+
+	// REQ-029: restrict origins in production; allow all in development
+	corsOrigins := []string{"*"}
+	if cfg.AppEnv == "production" {
+		corsOrigins = strings.Split(cfg.CORSOrigins, ",")
+	}
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: corsOrigins,
+		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
+	}))
 
 	app.Use(logger.New(logger.Config{
 		// redact X-API-Key so it never lands in logs (REQ-028)

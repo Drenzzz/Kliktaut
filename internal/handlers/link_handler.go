@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -29,12 +28,12 @@ func (h *LinkHandler) Create(c fiber.Ctx) error {
 		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 	}
 
-	// validator struct tag + cek manual scheme (validator `url` menerima ftp://)
-	if strings.HasPrefix(req.OriginalURL, "ftp://") || strings.HasPrefix(req.OriginalURL, "file://") {
-		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "URL must use http or https")
+	// strict validation §10.2: scheme http/https, max 2048, alias format
+	if err := utils.ValidURL(req.OriginalURL); err != nil {
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", err.Error())
 	}
-	if req.CustomAlias != "" && (len(req.CustomAlias) < 3 || len(req.CustomAlias) > 50) {
-		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", "custom_alias must be 3-50 characters")
+	if err := utils.ValidateStruct(req); err != nil {
+		return utils.Error(c, fiber.StatusBadRequest, "INVALID_REQUEST", err.Error())
 	}
 
 	link, err := h.svc.Create(req.OriginalURL, req.CustomAlias, req.Title, req.ExpiresAt)

@@ -13,6 +13,7 @@ type Config struct {
 	AppEnv    string
 	AppPort   string
 	BaseURL   string
+	CORSOrigins string
 
 	DBHost     string
 	DBPort     string
@@ -47,6 +48,7 @@ func Load() (*Config, error) {
 		AppEnv:    getEnv("APP_ENV", "development"),
 		AppPort:   getEnv("APP_PORT", "3000"),
 		BaseURL:   getEnv("BASE_URL", "http://localhost:3000"),
+		CORSOrigins: getEnv("CORS_ORIGINS", "*"),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5433"),
