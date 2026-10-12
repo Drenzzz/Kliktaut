@@ -16,6 +16,7 @@ func APIKey(key string) fiber.Handler {
 		if subtle.ConstantTimeCompare([]byte(provided), []byte(key)) != 1 {
 			return utils.Error(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "Missing or invalid API key")
 		}
+		c.Locals("api_key", provided)
 		return c.Next()
 	}
 }

@@ -53,7 +53,7 @@ func main() {
 	clickRepo := repositories.NewClickRepository(db)
 	linkHandler := handlers.NewLinkHandler(linkSvc)
 	redirectHandler := handlers.NewRedirectHandler(linkSvc, clickRepo)
-	api := app.Group("/api/v1", middleware.APIKey(cfg.APIKey))
+	api := app.Group("/api/v1", middleware.APIKey(cfg.APIKey), middleware.RateLimit(rdb, "api", cfg.RateLimitMax, cfg.RateLimitWindowSeconds))
 	api.Post("/links", linkHandler.Create)
 	api.Get("/links", linkHandler.List)
 	api.Get("/links/:id", linkHandler.GetByID)
@@ -67,7 +67,7 @@ func main() {
 	api.Get("/stats", analyticsHandler.Overview)
 
 	// MUST BE LAST: catch-all param route (REQ-006)
-	app.Get("/:shortCode", redirectHandler.Redirect)
+	app.Get("/:shortCode", middleware.RateLimit(rdb, "ip", cfg.RateLimitRedirectMax, cfg.RateLimitRedirectWin), redirectHandler.Redirect)
 
 	go func() {
 		log.Printf("%s (%s) listening on :%s", cfg.AppName, cfg.AppEnv, cfg.AppPort)
