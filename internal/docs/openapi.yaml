@@ -1,0 +1,353 @@
+openapi: 3.0.3
+info:
+  title: Kliktaut API
+  description: |
+    URL shortener with click analytics. Redirect endpoints are public;
+    everything under /api/v1 requires an API key via the X-API-Key header.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Development
+tags:
+  - name: Public
+    description: Health, docs, and redirect
+  - name: Links
+    description: Short link management
+  - name: Analytics
+    description: Click analytics and statistics
+paths:
+  /health:
+    get:
+      tags: [Public]
+      summary: Health check (verifies pg & redis)
+      responses:
+        "200":
+          description: Service healthy
+        "503":
+          description: Service degraded
+  /{shortCode}:
+    get:
+      tags: [Public]
+      summary: Redirect to the original URL and record the click
+      parameters:
+        - name: shortCode
+          in: path
+          required: true
+          schema: { type: string, maxLength: 50 }
+      responses:
+        "302": { description: Redirect to the original URL }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "410": { description: Link deactivated or expired }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/v1/links:
+    post:
+      tags: [Links]
+      summary: Create a short link
+      security: [{ ApiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateLinkRequest" }
+      responses:
+        "201":
+          description: Link created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkResponse" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/AliasTaken" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    get:
+      tags: [Links]
+      summary: List links (pagination + search)
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+        - { name: search, in: query, schema: { type: string, maxLength: 50 } }
+      responses:
+        "200":
+          description: Paginated links
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkListEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/v1/links/{id}:
+    get:
+      tags: [Links]
+      summary: Get one link
+      security: [{ ApiKeyAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/LinkID" }]
+      responses:
+        "200":
+          description: Link detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkResponse" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    patch:
+      tags: [Links]
+      summary: Partially update a link (short_code is immutable)
+      security: [{ ApiKeyAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/LinkID" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateLinkRequest" }
+      responses:
+        "200":
+          description: Updated link
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkResponse" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    delete:
+      tags: [Links]
+      summary: Soft-delete a link (sets is_active=false)
+      security: [{ ApiKeyAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/LinkID" }]
+      responses:
+        "200": { description: Link deactivated }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/v1/links/{id}/analytics:
+    get:
+      tags: [Analytics]
+      summary: Analytics summary for one link
+      description: |
+        total_clicks and unique_visitors exclude bots; clicks_by_device
+        includes the bot category by design.
+      security: [{ ApiKeyAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/LinkID" }]
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalyticsSummary" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/v1/links/{id}/clicks:
+    get:
+      tags: [Analytics]
+      summary: Raw click rows for one link (paginated)
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/LinkID" }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+      responses:
+        "200":
+          description: Paginated clicks
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClicksEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/v1/stats:
+    get:
+      tags: [Analytics]
+      summary: Overview statistics across all links
+      security: [{ ApiKeyAuth: [] }]
+      responses:
+        "200":
+          description: Overview statistics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OverviewStats" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  parameters:
+    LinkID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    InvalidRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotFound:
+      description: Link not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    AliasTaken:
+      description: Custom alias already in use or reserved
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    RateLimited:
+      description: Too many requests (headers include X-RateLimit-*)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string, example: LINK_NOT_FOUND }
+            message: { type: string }
+    CreateLinkRequest:
+      type: object
+      required: [original_url]
+      properties:
+        original_url: { type: string, format: uri, maxLength: 2048 }
+        custom_alias: { type: string, pattern: "^[a-zA-Z0-9-]{3,50}$" }
+        title: { type: string, maxLength: 255 }
+        expires_at: { type: string, format: date-time, nullable: true }
+    UpdateLinkRequest:
+      type: object
+      description: At least one field is required; short_code cannot be changed.
+      properties:
+        original_url: { type: string, format: uri, maxLength: 2048 }
+        title: { type: string, maxLength: 255 }
+        expires_at: { type: string, format: date-time, nullable: true }
+        is_active: { type: boolean }
+    LinkResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: "#/components/schemas/Link" }
+    Link:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        original_url: { type: string }
+        short_code: { type: string }
+        short_url: { type: string }
+        title: { type: string, nullable: true }
+        is_active: { type: boolean }
+        expires_at: { type: string, format: date-time, nullable: true }
+        click_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    LinkListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/LinkSummary" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    LinkSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        short_code: { type: string }
+        short_url: { type: string }
+        title: { type: string, nullable: true }
+        is_active: { type: boolean }
+        expires_at: { type: string, format: date-time, nullable: true }
+        click_count: { type: integer }
+        created_at: { type: string, format: date-time }
+    Meta:
+      type: object
+      properties:
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+    AnalyticsSummary:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            link_id: { type: string, format: uuid }
+            total_clicks: { type: integer, description: Excludes bots }
+            unique_visitors: { type: integer, description: Distinct IPs, excludes bots }
+            clicks_by_device:
+              type: object
+              additionalProperties: { type: integer }
+              description: Includes the bot category by design
+            clicks_by_browser:
+              type: object
+              additionalProperties: { type: integer }
+            top_referrers:
+              type: array
+              items:
+                type: object
+                properties:
+                  referrer: { type: string }
+                  count: { type: integer }
+            clicks_last_7_days:
+              type: array
+              items:
+                type: object
+                properties:
+                  date: { type: string, format: date }
+                  count: { type: integer }
+    ClicksEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Click" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    Click:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ip_address: { type: string, nullable: true }
+        user_agent: { type: string, nullable: true }
+        referrer: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        device_type: { type: string, nullable: true }
+        browser: { type: string, nullable: true }
+        os: { type: string, nullable: true }
+        clicked_at: { type: string, format: date-time }
+    OverviewStats:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            total_links: { type: integer }
+            active_links: { type: integer }
+            expired_links: { type: integer }
+            deleted_links: { type: integer }
+            total_clicks: { type: integer }
+            clicks_today: { type: integer }
+            clicks_last_7_days:
+              type: array
+              items:
+                type: object
+                properties:
+                  date: { type: string, format: date }
+                  count: { type: integer }
+            top_links:
+              type: array
+              items:
+                type: object
+                properties:
+                  short_code: { type: string }
+                  title: { type: string, nullable: true }
+                  click_count: { type: integer }

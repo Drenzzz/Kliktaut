@@ -80,6 +80,10 @@ func main() {
 	health := handlers.NewHealthHandler(db, rdb)
 	app.Get("/health", health.Get)
 
+	if err := handlers.RegisterDocs(app); err != nil {
+		log.Fatalf("docs: %v", err)
+	}
+
 	// /api/v1/* — API key middleware arrives in Phase 3
 	linkRepo := repositories.NewLinkRepository(db)
 	shortener := services.NewShortener(cfg, services.NewRandomSource(), linkRepo.ExistsShortCode)
