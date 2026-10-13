@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// TEST-011: window math — remaining, reset epoch, limit respected
+// TEST-011: window math: remaining, reset epoch, limit respected
 func TestRateLimitMath(t *testing.T) {
 	// remaining counts requests left AFTER the current one is accepted
 	if remaining(1, 60) != 59 {

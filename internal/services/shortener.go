@@ -7,7 +7,7 @@ import (
 	"kliktaut-api/internal/config"
 )
 
-// Reserved words from §14.1 — also applied to random codes (decision OQ-001:
+// Reserved words from §14.1, also applied to random codes (decision OQ-001:
 // a reserved random code is regenerated, not returned as an error).
 var ReservedWords = map[string]bool{
 	"api": true, "docs": true, "health": true, "admin": true, "login": true,

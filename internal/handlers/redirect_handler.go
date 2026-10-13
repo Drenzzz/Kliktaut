@@ -23,7 +23,7 @@ func NewRedirectHandler(svc *services.LinkService, clicks *repositories.ClickRep
 	return &RedirectHandler{svc: svc, clicks: clicks, cache: cache}
 }
 
-// GET /:shortCode — critical path: redirect + async click tracking (§4.2).
+// GET /:shortCode: redirect + async click tracking, the critical path (§4.2).
 // Cache-first: a Redis hit skips PostgreSQL; miss or Redis error falls back
 // to the DB (decision OQ-002). Inactive/expired entries are never cached.
 func (h *RedirectHandler) Redirect(c fiber.Ctx) error {
@@ -51,7 +51,7 @@ func (h *RedirectHandler) Redirect(c fiber.Ctx) error {
 	}
 
 	// async: INSERT click + increment the counter in a separate goroutine;
-	// errors are logged, not retried (decision OQ-003 — loss accepted in v1.0)
+	// errors are logged, not retried (decision OQ-003: loss accepted in v1.0)
 	go func(linkID, ip, ua, referrer string) {
 		if err := h.clicks.InsertClickAsync(linkID, ip, ua, referrer); err != nil {
 			log.Printf("click tracking error (link %s): %v", linkID, err)

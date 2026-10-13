@@ -19,7 +19,7 @@ func NewHealthHandler(db *gorm.DB, rdb *redis.Client) *HealthHandler {
 	return &HealthHandler{DB: db, Redis: rdb, Start: time.Now()}
 }
 
-// GET /health — public; performs real pg & redis checks on every request
+// GET /health: public; performs real pg & redis checks on every request
 func (h *HealthHandler) Get(c fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 	defer cancel()

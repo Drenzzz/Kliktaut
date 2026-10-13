@@ -23,7 +23,7 @@ type CountRow struct {
 
 // Summary returns all metrics for one link. Bot exclusion rules (§6.4):
 // total_clicks & unique_visitors exclude device_type='bot';
-// clicks_by_device INCLUDES bot (RISK-011 — documented behavior).
+// clicks_by_device INCLUDES bot (RISK-011, documented behavior).
 type Summary struct {
 	TotalClicks    int64
 	UniqueVisitors int64

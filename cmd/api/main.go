@@ -129,7 +129,7 @@ func main() {
 		log.Fatalf("docs: %v", err)
 	}
 
-	// /api/v1/* — API key middleware arrives in Phase 3
+	// /api/v1/*: API key middleware arrives in Phase 3
 	linkRepo := repositories.NewLinkRepository(db)
 	shortener := services.NewShortener(cfg, services.NewRandomSource(), linkRepo.ExistsShortCode)
 	linkCache := cache.NewLinkCache(rdb, cfg.CacheTTLSeconds)

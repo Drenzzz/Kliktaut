@@ -115,7 +115,7 @@ func (h *LinkHandler) GetByID(c fiber.Ctx) error {
 	return utils.Success(c, fiber.StatusOK, toLinkResponse(link, h.svc.ShortURL(link.ShortCode)))
 }
 
-// PATCH /api/v1/links/:id — minimal 1 field; short_code immutable.
+// PATCH /api/v1/links/:id: minimal 1 field; short_code immutable.
 func (h *LinkHandler) Update(c fiber.Ctx) error {
 	id := c.Params("id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -137,7 +137,7 @@ func (h *LinkHandler) Update(c fiber.Ctx) error {
 	return utils.Success(c, fiber.StatusOK, toLinkResponse(link, h.svc.ShortURL(link.ShortCode)))
 }
 
-// DELETE /api/v1/links/:id — soft delete (is_active=false).
+// DELETE /api/v1/links/:id: soft delete (is_active=false).
 func (h *LinkHandler) Delete(c fiber.Ctx) error {
 	id := c.Params("id")
 	if _, err := uuid.Parse(id); err != nil {

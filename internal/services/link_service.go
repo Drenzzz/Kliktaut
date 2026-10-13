@@ -85,7 +85,7 @@ func (svc *LinkService) List(page, perPage int, search string) ([]models.Link, i
 func (svc *LinkService) GetByID(id string) (*models.Link, error) {
 	link, err := svc.links.GetByID(id)
 	if err != nil {
-		// GORM wraps ErrRecordNotFound without Unwrap — compare directly
+		// GORM wraps ErrRecordNotFound without Unwrap, so compare directly
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrLinkNotFound
 		}
@@ -102,7 +102,7 @@ func (svc *LinkService) Update(id string, body []byte) (*models.Link, error) {
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, ErrInvalidRequest
 	}
-	delete(raw, "short_code") // immutable — ignored
+	delete(raw, "short_code") // immutable, ignored
 	delete(raw, "id")         // immutable
 
 	if len(raw) == 0 {
@@ -167,7 +167,7 @@ func (svc *LinkService) Update(id string, body []byte) (*models.Link, error) {
 func (svc *LinkService) GetByShortCode(code string) (*models.Link, error) {
 	link, err := svc.links.GetByShortCode(code)
 	if err != nil {
-		// GORM wraps ErrRecordNotFound without Unwrap — compare directly
+		// GORM wraps ErrRecordNotFound without Unwrap, so compare directly
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrLinkNotFound
 		}

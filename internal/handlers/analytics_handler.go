@@ -80,7 +80,7 @@ func (h *AnalyticsHandler) Overview(c fiber.Ctx) error {
 }
 
 // ensureLinkExists writes the error response itself and reports whether
-// the request was handled (link missing/invalid) — utils.Error returns nil
+// the request was handled (link missing/invalid), since utils.Error returns nil
 // on success, so propagating its value would silently drop the 404.
 func (h *AnalyticsHandler) ensureLinkExists(c fiber.Ctx, id string) bool {
 	exists, err := h.svc.ForLinkExist(id)

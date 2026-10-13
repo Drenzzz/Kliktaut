@@ -112,6 +112,6 @@ func main() {
 	if p50 < 50 && hit.errors == 0 {
 		fmt.Printf("PASS (%.2f ms)\n", p50)
 	} else {
-		fmt.Printf("FAIL (p50=%.2f ms, errors=%d) — see SC-014\n", p50, hit.errors)
+		fmt.Printf("FAIL (p50=%.2f ms, errors=%d). See SC-014\n", p50, hit.errors)
 	}
 }
