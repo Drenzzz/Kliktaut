@@ -1,0 +1,65 @@
+# Render blueprint for Kliktaut.
+# Deploy: connect this repository in Render, then apply this blueprint.
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: kliktaut-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_PORT
+        value: "3000"
+      - key: BASE_URL
+        sync: false # set to the public Render URL after first deploy
+      - key: API_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false # comma-separated allowed origins, no wildcard
+      - key: DB_HOST
+        fromDatabase:
+          name: kliktaut-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: kliktaut-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: kliktaut-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: kliktaut-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: kliktaut-db
+          property: database
+      - key: DB_SSLMODE
+        value: require
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: kliktaut-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: kliktaut-redis
+          property: port
+
+  - type: redis
+    name: kliktaut-redis
+    plan: free
+    ipAllowList: [] # only reachable from Render services
+
+databases:
+  - name: kliktaut-db
+    plan: free
+    databaseName: kliktaut
+    user: kliktaut
