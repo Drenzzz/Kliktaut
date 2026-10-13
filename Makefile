@@ -14,6 +14,9 @@ seed:
 loadtest:
 	go run ./scripts/loadtest -url=$${BASE_URL:-http://localhost:3000} -code=$${LOADTEST_CODE:-kliktaut-docs} -total=$${LOADTEST_TOTAL:-5000} -concurrency=$${LOADTEST_CONCURRENCY:-50}
 
+loadtest:
+	go run ./scripts/loadtest -url=$${BASE_URL:-http://localhost:3000} -code=$${LOADTEST_CODE:-kliktaut-docs} -total=$${LOADTEST_TOTAL:-5000} -concurrency=$${LOADTEST_CONCURRENCY:-50}
+
 migrate:
 	$(MIGRATE) -source file://migrations -database "$(MIGRATE_DSN)" up
 
