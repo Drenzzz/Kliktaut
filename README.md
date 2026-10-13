@@ -1,6 +1,6 @@
 # Kliktaut
 
-URL shortener with click analytics, built as a backend portfolio project. Create a
+URL shortener with click analytics. Create a
 short link, share it, and see who clicked it: device, browser, OS, referrer, and
 which links get traffic.
 
@@ -24,8 +24,8 @@ Go 1.27, Fiber v3, PostgreSQL 17, Redis 8.
 ## Quick start
 
 ```bash
-git clone <your-repo-url> kliktaut-api
-cd kliktaut-api
+git clone https://github.com/Drenzzz/Kliktaut.git
+cd Kliktaut
 
 # 1. environment
 cp .env.example .env
@@ -168,26 +168,6 @@ Redirect flow:
 `PATCH` and `DELETE` delete the cache key so a changed or deactivated link stops
 redirecting right away instead of waiting for the TTL.
 
-## Project layout
-
-```
-cmd/api/            entry point, route wiring, migrations on boot (container)
-cmd/seed/           demo data seeder
-internal/cache/     Redis link cache
-internal/config/    env loading and validation
-internal/database/  Postgres and Redis connections
-internal/docs/      embedded OpenAPI spec
-internal/dto/       request and response shapes
-internal/handlers/  HTTP handlers
-internal/middleware/ API key, rate limiting
-internal/models/    GORM models
-internal/repositories/ data access
-internal/services/  business logic (shortener, redirect rules, analytics)
-internal/utils/     response envelope, validation, user-agent parsing
-migrations/         SQL up/down files
-scripts/loadtest/   redirect load test
-```
-
 ## Deployment
 
 The Dockerfile builds a static binary and runs it on distroless. Migrations run
@@ -204,8 +184,9 @@ docker run -p 3000:3000 \
 
 ### Render
 
-`render.yaml` defines a web service plus Postgres and Redis. Point Render at your
-repository, set `API_KEY` as a secret, and deploy.
+`render.yaml` defines a web service plus Postgres and Redis. In the Render
+dashboard, choose New > Blueprint, connect
+https://github.com/Drenzzz/Kliktaut, and apply. Set `API_KEY` as a secret.
 
 Note on the free tier: the web service spins down after about 15 minutes idle,
 so the first request can take 30 to 60 seconds. That cold start shows up in
