@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.27"
+
+      - name: No committed secrets
+        run: |
+          if git ls-files | grep -E '^\.env$'; then
+            echo "::error::.env is committed"; exit 1
+          fi
+          if grep -rIq 'API_KEY=.*[a-f0-9]\{32\}' --include='*.yml' --include='*.go' . 2>/dev/null && ! git grep -q 'change-this'; then
+            echo "::error::hardcoded API key detected"; exit 1
+          fi
+          echo "no secrets found"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.14
+
+      - name: Test (race detector)
+        run: go test -race ./...
+
+      - name: Build
+        run: go build ./...
